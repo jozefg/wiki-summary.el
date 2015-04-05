@@ -24,13 +24,21 @@
   (let ((buf (generate-new-buffer "*wiki-summary*")))
     (with-current-buffer buf
       (princ summary buf)
-      (fill-paragraph))
+      (fill-paragraph)
+      (text-mode)
+      (read-only-mode))
     (display-buffer buf)))
 
 (defun wiki-summary (s)
   "Return the wikipedia page's summary for a term"
+  (interactive (list
+		(read-string (concat "Wikipedia Article ("
+                                     (thing-at-point 'word)
+                                     ") : ")
+			     nil
+			     nil
+			     (thing-at-point 'word))))
   (save-excursion
-    (interactive "s")
     (url-retrieve (wiki-summary/make-api-query s)
        (lambda (events)
          (message "") ; Clear the annoying minibuffer display
