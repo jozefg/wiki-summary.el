@@ -25,23 +25,21 @@
     (with-current-buffer buf
       (princ summary buf)
       (fill-paragraph))
-    (split-window-horizontally)
-    (other-window 1)
-    (switch-to-buffer buf)))
+    (display-buffer buf)))
 
 (defun wiki-summary (s)
   "Return the wikipedia page's summary for a term"
-  (interactive "s")
-  (url-retrieve (wiki-summary/make-api-query s)
-     (lambda (events)
-       (goto-char url-http-end-of-headers)
-       (let ((json-object-type 'plist)
-             (json-key-type 'symbol)
-             (json-array-type 'vector))
-         (let* ((result (json-read))
-                (summary (wiki-summary/extract-summary-from-response result)))
-           (wiki-summary/format-summary-in-buffer summary))))))
-
-(wiki-summary "Emacs")
+  (save-excursion
+    (interactive "s")
+    (url-retrieve (wiki-summary/make-api-query s)
+       (lambda (events)
+         (message "") ; Clear the annoying minibuffer display
+         (goto-char url-http-end-of-headers)
+         (let ((json-object-type 'plist)
+               (json-key-type 'symbol)
+               (json-array-type 'vector))
+           (let* ((result (json-read))
+                  (summary (wiki-summary/extract-summary-from-response result)))
+             (wiki-summary/format-summary-in-buffer summary)))))))
 
 (provide 'wiki-summary)
