@@ -1,3 +1,12 @@
+;;; wiki-summary.el --- View Wikipedia summaries in Emacs easily
+
+;; Copright (C) 2015 Danny Gratzer
+;; Author: Danny Gratzer
+;; URL: https://github.com/jozefg/wiki-summary.el
+;; Keywords: wikipedia, utility
+;; Package-Requires: ((emacs "24"))
+;; Version: 0.1
+
 (require 'url)
 (require 'json)
 
