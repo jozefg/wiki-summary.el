@@ -25,19 +25,24 @@
     (with-current-buffer buf
       (princ summary buf)
       (fill-paragraph)
+      (beginning-of-buffer)
       (text-mode)
       (read-only-mode))
     (display-buffer buf)))
 
 (defun wiki-summary (s)
   "Return the wikipedia page's summary for a term"
-  (interactive (list
-		(read-string (concat "Wikipedia Article ("
-                                     (thing-at-point 'word)
-                                     ") : ")
-			     nil
-			     nil
-			     (thing-at-point 'word))))
+  (interactive
+   (list
+    (read-string (concat
+                  "Wikipedia Article"
+                  (if (thing-at-point 'word)
+                      (concat "(" (thing-at-point 'word) ")")
+                    "")
+                  ": ")
+                 nil
+                 nil
+                 (thing-at-point 'word))))
   (save-excursion
     (url-retrieve (wiki-summary/make-api-query s)
        (lambda (events)
