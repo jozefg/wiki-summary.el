@@ -1,6 +1,7 @@
-;;; wiki-summary.el --- View Wikipedia summaries in Emacs easily
+;;; wiki-summary.el --- View Wikipedia summaries in Emacs easily.
 
-;; Copright (C) 2015 Danny Gratzer
+;; Copright (C) 2015 Danny Gratzer <jozefg@cmu.edu>
+
 ;; Author: Danny Gratzer
 ;; URL: https://github.com/jozefg/wiki-summary.el
 ;; Keywords: wikipedia, utility
@@ -39,6 +40,7 @@
       (read-only-mode))
     (display-buffer buf)))
 
+;;;###autoload
 (defun wiki-summary (s)
   "Return the wikipedia page's summary for a term"
   (interactive
@@ -46,7 +48,7 @@
     (read-string (concat
                   "Wikipedia Article"
                   (if (thing-at-point 'word)
-                      (concat "(" (thing-at-point 'word) ")")
+                      (concat " (" (thing-at-point 'word) ")")
                     "")
                   ": ")
                  nil
