@@ -40,7 +40,7 @@
    to get the page info"
   (let ((pre "https://en.wikipedia.org/w/api.php?continue=&action=query&titles=")
         (post "&prop=extracts&exintro=&explaintext=&format=json&redirects")
-        (term (replace-regexp-in-string " " "_" s)))
+        (term (url-hexify-string (replace-regexp-in-string " " "_" s))))
     (concat pre term post)))
 
 ;;;###autoload
