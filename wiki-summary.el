@@ -30,6 +30,9 @@
 (require 'json)
 (require 'thingatpt)
 
+; This stops the compiler from complaining.
+(defvar url-http-end-of-headers)
+
 ;;;###autoload
 (defun wiki-summary/make-api-query (s)
   "Given a wiki page title, generate the url for the API call
@@ -54,7 +57,7 @@
     (with-current-buffer buf
       (princ summary buf)
       (fill-paragraph)
-      (beginning-of-buffer)
+      (goto-char (point-min))
       (text-mode)
       (read-only-mode))
     (display-buffer buf)))
@@ -88,3 +91,5 @@
                (message "No article found"))))))))
 
 (provide 'wiki-summary)
+
+;;; wiki-summary.el ends here
