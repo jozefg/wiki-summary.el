@@ -8,9 +8,29 @@
 ;; Package-Requires: ((emacs "24"))
 ;; Version: 0.1
 
+;;; Commentary:
+
+;; It's often the case when reading some document in Emacs (be it
+;; code text or prose) that I come across a word or phrase that I
+;; don't know. In order to simplify my feedback loop when wiki-summary
+;; lets me look up something in a couple seconds.
+;;
+;; To use this package, simply call M-x wiki-summary (or bind it to a key).
+;; This will prompt you for an article title to search. For convience,
+;; this will default to the word under the point. When you hit enter
+;; this will query Wikipedia and if an article is found, bring up the
+;; title in a separate window. Spaces will be properly escaped so
+;; something like "Haskell (programming language)" will bring up the
+;; intended page.
+;;
+;; I'm not sure exactly what else people would want out of this package.
+;; Feature request issues are welcome.
+
 (require 'url)
 (require 'json)
+(require 'thingatpt)
 
+;;;###autoload
 (defun wiki-summary/make-api-query (s)
   "Given a wiki page title, generate the url for the API call
    to get the page info"
@@ -19,16 +39,15 @@
         (term (replace-regexp-in-string " " "_" s)))
     (concat pre term post)))
 
-(defun wiki-summary/extract-summary-from-response (resp)
+;;;###autoload
+(defun wiki-summary/extract-summary (resp)
   "Given the JSON reponse from the webpage, grab the summary as a string"
   (let* ((query (plist-get resp 'query))
          (pages (plist-get query 'pages))
-         (info (cadr pages))
-         (summary (plist-get info 'extract)))
-    (if (not summary)
-        (message "No page found!")
-      summary)))
+         (info (cadr pages)))
+    (plist-get info 'extract)))
 
+;;;###autoload
 (defun wiki-summary/format-summary-in-buffer (summary)
   "Given a summary, stick it in the *wiki-summary* buffer and display the buffer"
   (let ((buf (generate-new-buffer "*wiki-summary*")))
@@ -63,7 +82,9 @@
                (json-key-type 'symbol)
                (json-array-type 'vector))
            (let* ((result (json-read))
-                  (summary (wiki-summary/extract-summary-from-response result)))
-             (wiki-summary/format-summary-in-buffer summary)))))))
+                  (summary (wiki-summary/extract-summary result)))
+             (if summary
+                 (wiki-summary/format-summary-in-buffer summary)
+               (message "No article found"))))))))
 
 (provide 'wiki-summary)
