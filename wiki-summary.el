@@ -30,8 +30,9 @@
 (require 'json)
 (require 'thingatpt)
 
-; This stops the compiler from complaining.
-(defvar url-http-end-of-headers)
+(eval-when-compile
+  ; This stops the compiler from complaining.
+  (defvar url-http-end-of-headers))
 
 ;;;###autoload
 (defun wiki-summary/make-api-query (s)
