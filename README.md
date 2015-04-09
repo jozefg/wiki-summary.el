@@ -1,5 +1,7 @@
 ## wiki-summary.el
 
+[![MELPA](http://melpa.org/packages/wiki-summary-badge.svg)](http://melpa.org/#/wiki-summary)
+
 Grab the Wikipedia summary for a term and display the result in a
 buffer. Inspired by [WikiTerm][wikiterm].
 
