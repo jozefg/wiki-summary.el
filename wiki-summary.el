@@ -52,13 +52,13 @@
   (url-hexify-string (replace-regexp-in-string " " "_" search-term)))
 
 ;;;###autoload
-(defun wiki-summary/insert-button-for-full-page (search-term)
-  "Insert a button into the current buffer to browse the full article for a page"
-  (let ((url (concat "http://en.wikipedia.org/?search="
-                     (wiki-summary/url-format-search-term search-term))))
-    (insert-button "Read the full article"
-                   'action (lambda (x) (browse-url (button-get x 'url)))
-                   'url url)))
+(defun wiki-summary/parse-json ()
+  "Parse the json returned from the Wikipedia API. This returns a Lisp term"
+  (goto-char url-http-end-of-headers)
+  (let ((json-object-type 'plist)
+        (json-key-type 'symbol)
+        (json-array-type 'vector))
+    (json-read)))
 
 ;;;###autoload
 (defun wiki-summary/extract-summary (resp)
@@ -69,13 +69,21 @@
     (plist-get info 'extract)))
 
 ;;;###autoload
+(defun wiki-summary/insert-button-for-full-page (search-term)
+  "Insert a button into the current buffer to browse the full article for a page"
+  (let ((url (concat "http://en.wikipedia.org/?search="
+                     (wiki-summary/url-format-search-term search-term))))
+    (insert-button "Read the full article"
+                   'action (lambda (x) (browse-url (button-get x 'url)))
+                   'url url)))
+
+;;;###autoload
 (defun wiki-summary/tidy-up-displayed-buffer ()
   "Tidies up the current buffer (presumed to be the wiki-summary buffer)"
   (goto-char (point-min))
   (while (search-forward "\n" nil t)
     (replace-match "\n\n"))
   (fill-region (point-min) (point-max)))
-
 
 ;;;###autoload
 (defun wiki-summary/format-summary-in-buffer (summary search-term)
@@ -91,15 +99,6 @@
         (view-mode 1)
         (goto-char (point-min))))
     (display-buffer buf)))
-
-;;;###autoload
-(defun wiki-summary/parse-json ()
-  "Parse the json returned from the Wikipedia API. This returns a Lisp term"
-  (goto-char url-http-end-of-headers)
-  (let ((json-object-type 'plist)
-        (json-key-type 'symbol)
-        (json-array-type 'vector))
-    (json-read)))
 
 ;;;###autoload
 (defun wiki-summary (s)
