@@ -120,10 +120,6 @@
     (let ((query-url (wiki-summary/make-api-query s)))
       (url-retrieve query-url
                     (lambda (status s)
-                      (when (plist-member status :error)
-                        (message "Couldn't retrieve URL")
-                        (return))
-
                       (message "") ; Clear the annoying minibuffer display
                       (let* ((result (wiki-summary/parse-json))
                              (summary (wiki-summary/extract-summary result)))
