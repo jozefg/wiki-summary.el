@@ -26,7 +26,7 @@
 ;; intended page.
 ;;
 ;; I'm not sure exactly what else people would want out of this package.
-;; Feature request issues are welcome.
+;; Feature request and issues are welcome.
 
 (require 'url)
 (require 'json)
