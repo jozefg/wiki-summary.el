@@ -61,7 +61,7 @@
       (goto-char (point-min))
       (text-mode)
       (read-only-mode))
-    (display-buffer buf)))
+    (pop-to-buffer buf)))
 
 ;;;###autoload
 (defun wiki-summary (s)
