@@ -60,7 +60,7 @@
       (fill-paragraph)
       (goto-char (point-min))
       (text-mode)
-      (read-only-mode))
+      (view-mode))
     (pop-to-buffer buf)))
 
 ;;;###autoload
