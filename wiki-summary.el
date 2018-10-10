@@ -106,22 +106,23 @@
 
 
 ;;;###autoload
-(defun wiki-summary (s &optional d)
+(defun wiki-summary (s &optional level)
   "Return the wikipedia page's summary either by a directly
    provided title, or otherwise by searching for the title"
   (setq title s)
-  (setq direct (not d))
+  (setq direct (if (> level 0) not d))
   (interactive
    (list
-    (read-string (concat
-                  "Wikipedia Article"
-                  (if (thing-at-point 'word)
-                      (concat " (" (thing-at-point 'word) ")")
-                    "")
-                  ": ")
-                 nil
-                 nil
-                 (thing-at-point 'word))))
+    (read-string
+     (concat
+      "Wikipedia Article"
+      (if (thing-at-point 'word)
+          (concat " (" (thing-at-point 'word) ")")
+        "")
+      ": ")
+     nil
+     nil
+     (thing-at-point 'word))))
   (save-excursion
     (url-retrieve (if direct (wiki-summary/make-api-query title)
                     (wiki-summary/make-api-search-query title))
@@ -136,18 +137,26 @@
                  (let ((summary (wiki-summary/extract-summary result)))
                    (if summary
                        (if (string-match-p "may refer to:" summary)
-                           ;;(wiki-summary title 'nil)   ;; ambiguous title, recurse with search
-                           (message "Ambiguous Title, recurse")
+                           (progn
+                             (message "Ambiguous Title, recurse with search")
+                             (wiki-summary title (+ level 1)))
                          (wiki-summary/format-summary-in-buffer summary)) ;; Terminate with summary
-                     (message "No title, performing search, recurse")
+                     (progn
+                       (message "No title, recurse with search")
+                       (wiki-summary title (+ level 1)))
                      ))
                (let* ((chosen (wiki-summary/offer-choices result)))
                  (if chosen
-                     (message (concat "Recurse with " chosen)) 
-                   ;;(wiki-summary chosen) ;; recurse
-                   (message "No article found"))))))))))
+                     (progn
+                       (message (concat "Chosen [" chosen "], recurse with title"))
+                       (wiki-summary chosen 0))
+                   (message "No article found"))
+                   ))))))))
 
 (provide 'wiki-summary)
 
 ;;; wiki-summary.el ends here
 (wiki-summary "RNA Binding")
+
+(let ((d 't))
+  (> 1 (if (not d) 0 d)))
