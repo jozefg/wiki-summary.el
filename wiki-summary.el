@@ -63,6 +63,48 @@
       (read-only-mode))
     (display-buffer buf)))
 
+
+;; Search functions begin here
+;;;###autoload
+(defun wiki-summary/make-api-search-query (s)
+  "Given a search title, generate the url for the API call
+   to return a list of wiki page titles"
+  (let ((pre "https://en.wikipedia.org/w/api.php?continue=&action=query&list=search&srsearch=")
+        (post "&prop=extracts&exintro=&explaintext=&format=json&redirects")
+        (term (url-hexify-string s)))
+    (concat pre term post)))
+
+;;;###autoload
+(defun wiki-summary/format-choice-text (tup)
+  "Formatted text to offer to user, with snippets if variable set"
+  (if wiki-summary-showsnippet
+      (concat (tuple-title tup) " ::: " (tuple-summary tup))
+    (tuple-title tup)))
+
+;;;###autoload
+(defun wiki-summary/clean-snippet (snippet)
+  "Removes <span> tags and newlines from snippet text"
+  (replace-regexp-in-string "\\(\n\\|\s\\)+" " "
+    (replace-regexp-in-string "</span>" ""
+      (replace-regexp-in-string "<span[^>]*>" "" snippet))))
+
+;;;###autoload
+(defun wiki-summary/extract-titleandsnippet (json)
+  "Extracts title and snippet entries from search results"
+  (make-tuple
+   :title (plist-get json 'title)
+   :snippet (clean-snippet (plist-get json 'snippet))))
+
+;;;###autoload
+(defun wiki-summary/offer-choices (resp)
+  "Offers a choice of potential titles to the user"
+  (let* ((query (plist-get resp 'query))
+         (searches (plist-get query 'search))
+         (choices (mapcar (lambda (x)
+             (wiki-summary/format-choice-text (extract-titleandsnippet x))) searches)))
+    (ido-completing-read "Matching Titles: " choices)))
+
+
 ;;;###autoload
 (defun wiki-summary (s)
   "Return the wikipedia page's summary for a term"
@@ -89,7 +131,19 @@
                   (summary (wiki-summary/extract-summary result)))
              (if summary
                  (wiki-summary/format-summary-in-buffer summary)
-               (message "No article found"))))))))
+               (url-retrieve (wiki-summary/make-api-search-query s)
+                             (lambda (events)
+                               (message "") ; Curse that infernal buffer!
+                               (goto-char url-http-end-of-headers)
+                               (let ((json-object-type 'plist)
+                                     (json-key-type 'symbol)
+                                     (json-array-type 'vector))
+                                 (let* ((result (json-read))
+                                        (chosen (wiki-summary/offer-choices result)))
+                                   (if chosen
+                                       (wiki-summary chosen) ;; recurse
+                                     (message "No article found"))))))
+               )))))))
 
 (provide 'wiki-summary)
 
