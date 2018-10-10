@@ -34,12 +34,27 @@
   ; This stops the compiler from complaining.
   (defvar url-http-end-of-headers))
 
+(defcustom wiki-summary-language-string "en"
+  "Language string for the API URL call, i.e.: 'en', 'fr', etc.")
+
+(defvar wiki--pre-url-query-format-string
+  "https://%s.wikipedia.org/w/api.php?continue=&action=query&list=search&srsearch=")
+
+(defvar wiki--pre-url-format-string
+  "https://%s.wikipedia.org/w/api.php?continue=&action=query&titles=")
+
+(defvar wiki--post-url-format-string
+  "&prop=extracts&exintro=&explaintext=&format=json&redirects")
+
+(defvar wiki-summary-showsnippet 'nil)
+
+
 ;;;###autoload
 (defun wiki-summary/make-api-query (s)
   "Given a wiki page title, generate the url for the API call
    to get the page info"
-  (let ((pre "https://en.wikipedia.org/w/api.php?continue=&action=query&titles=")
-        (post "&prop=extracts&exintro=&explaintext=&format=json&redirects")
+  (let ((pre (format wiki--pre-url-format-string wiki-summary-language-string))
+        (post wiki--post-url-format-string)
         (term (url-hexify-string (replace-regexp-in-string " " "_" s))))
     (concat pre term post)))
 
@@ -60,8 +75,18 @@
       (fill-paragraph)
       (goto-char (point-min))
       (text-mode)
-      (read-only-mode))
-    (display-buffer buf)))
+      (view-mode))
+    (pop-to-buffer buf)))
+
+;;;###autoload
+(defun wiki-summary/format-summary-into-buffer (summary buffer)
+  "Given a summary, stick it in the *wiki-summary* buffer and display the buffer"
+  (let ((this-buffer (get-buffer buffer)))
+    (with-current-buffer (get-buffer this-buffer)
+      (barf-if-buffer-read-only)
+      (insert summary)
+      (fill-paragraph))
+    (display-buffer (get-buffer this-buffer))))
 
 
 ;; Search functions begin here
@@ -69,9 +94,9 @@
 (defun wiki-summary/make-api-search-query (s)
   "Given a search title, generate the url for the API call
    to return a list of wiki page titles"
-  (let ((pre "https://en.wikipedia.org/w/api.php?continue=&action=query&list=search&srsearch=")
-        (post "&prop=extracts&exintro=&explaintext=&format=json&redirects")
-        (term (url-hexify-string s)))
+  (let ((pre (format wiki--pre-url-query-format-string wiki-summary-language-string))
+        (post 'wiki--post-url-format-string)
+        (term (url-hexify-string (replace-regexp-in-string " " "_" s))))
     (concat pre term post)))
 
 ;;;###autoload
@@ -103,6 +128,36 @@
          (choices (mapcar (lambda (x)
              (wiki-summary/format-choice-text (extract-titleandsnippet x))) searches)))
     (ido-completing-read "Matching Titles: " choices)))
+
+;;;###autoload
+(defun wiki-summary-insert (s)
+  "Return the wikipedia page's summary for a term"
+  (interactive
+   (list
+    (read-string (concat
+                  "Wikipedia Article"
+                  (if (thing-at-point 'word)
+                      (concat " (" (thing-at-point 'word) ")")
+                    "")
+                  ": ")
+                 nil
+                 nil
+                 (thing-at-point 'word))))
+  (save-excursion
+    (url-retrieve
+     (wiki-summary/make-api-query s)
+     (lambda (events buf)
+       (message "") ; Clear the annoying minibuffer display
+       (goto-char url-http-end-of-headers)
+       (let ((json-object-type 'plist)
+             (json-key-type 'symbol)
+             (json-array-type 'vector))
+         (let* ((result (json-read))
+                (summary (wiki-summary/extract-summary result)))
+           (if (not summary)
+               (message "No article found")
+             (wiki-summary/format-summary-into-buffer summary buf)))))
+     (list (buffer-name (current-buffer))))))
 
 
 ;;;###autoload
@@ -156,7 +211,6 @@
 (provide 'wiki-summary)
 
 ;;; wiki-summary.el ends here
-(wiki-summary "RNA Binding")
-
-(let ((d 't))
-  (> 1 (if (not d) 0 d)))
+;; --- tests ----
+;; (wiki-summary "RNA Binding")  ;; No direct title
+;; (wiki-summary "Tony")  ;; ambiguous
