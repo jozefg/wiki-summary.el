@@ -60,8 +60,8 @@
       (fill-paragraph)
       (goto-char (point-min))
       (text-mode)
-      (read-only-mode))
-    (display-buffer buf)))
+      (view-mode))
+    (pop-to-buffer buf)))
 
 ;;;###autoload
 (defun wiki-summary (s)
