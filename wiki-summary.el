@@ -106,8 +106,11 @@
 
 
 ;;;###autoload
-(defun wiki-summary (s)
-  "Return the wikipedia page's summary for a term"
+(defun wiki-summary (s &optional d)
+  "Return the wikipedia page's summary either by a directly
+   provided title, or otherwise by searching for the title"
+  (setq title s)
+  (setq direct (not d))
   (interactive
    (list
     (read-string (concat
@@ -120,31 +123,31 @@
                  nil
                  (thing-at-point 'word))))
   (save-excursion
-    (url-retrieve (wiki-summary/make-api-query s)
+    (url-retrieve (if direct (wiki-summary/make-api-query title)
+                    (wiki-summary/make-api-search-query title))
        (lambda (events)
          (message "") ; Clear the annoying minibuffer display
          (goto-char url-http-end-of-headers)
          (let ((json-object-type 'plist)
                (json-key-type 'symbol)
                (json-array-type 'vector))
-           (let* ((result (json-read))
-                  (summary (wiki-summary/extract-summary result)))
-             (if summary
-                 (wiki-summary/format-summary-in-buffer summary)
-               (url-retrieve (wiki-summary/make-api-search-query s)
-                             (lambda (events)
-                               (message "") ; Curse that infernal buffer!
-                               (goto-char url-http-end-of-headers)
-                               (let ((json-object-type 'plist)
-                                     (json-key-type 'symbol)
-                                     (json-array-type 'vector))
-                                 (let* ((result (json-read))
-                                        (chosen (wiki-summary/offer-choices result)))
-                                   (if chosen
-                                       (wiki-summary chosen) ;; recurse
-                                     (message "No article found"))))))
-               )))))))
+           (let* ((result (json-read)))
+             (if direct
+                 (let ((summary (wiki-summary/extract-summary result)))
+                   (if summary
+                       (if (string-match-p "may refer to:" summary)
+                           ;;(wiki-summary title 'nil)   ;; ambiguous title, recurse with search
+                           (message "Ambiguous Title, recurse")
+                         (wiki-summary/format-summary-in-buffer summary)) ;; Terminate with summary
+                     (message "No title, performing search, recurse")
+                     ))
+               (let* ((chosen (wiki-summary/offer-choices result)))
+                 (if chosen
+                     (message (concat "Recurse with " chosen)) 
+                   ;;(wiki-summary chosen) ;; recurse
+                   (message "No article found"))))))))))
 
 (provide 'wiki-summary)
 
 ;;; wiki-summary.el ends here
+(wiki-summary "RNA Binding")
