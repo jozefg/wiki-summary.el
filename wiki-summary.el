@@ -34,12 +34,21 @@
   ; This stops the compiler from complaining.
   (defvar url-http-end-of-headers))
 
+(defcustom wiki-summary-language-string "en"
+  "Language string for the API URL call, i.e.: 'en', 'fr', etc.")
+
+(defvar wiki--pre-url-format-string
+  "https://%s.wikipedia.org/w/api.php?continue=&action=query&titles=")
+
+(defvar wiki--post-url-format-string
+  "&prop=extracts&exintro=&explaintext=&format=json&redirects")
+
 ;;;###autoload
 (defun wiki-summary/make-api-query (s)
   "Given a wiki page title, generate the url for the API call
    to get the page info"
-  (let ((pre "https://en.wikipedia.org/w/api.php?continue=&action=query&titles=")
-        (post "&prop=extracts&exintro=&explaintext=&format=json&redirects")
+  (let ((pre (format wiki--pre-url-format-string wiki-summary-language-string))
+        (post wiki--post-url-format-string)
         (term (url-hexify-string (replace-regexp-in-string " " "_" s))))
     (concat pre term post)))
 
@@ -62,6 +71,16 @@
       (text-mode)
       (view-mode))
     (pop-to-buffer buf)))
+
+;;;###autoload
+(defun wiki-summary/format-summary-into-buffer (summary buffer)
+  "Given a summary, stick it in the *wiki-summary* buffer and display the buffer"
+  (let ((this-buffer (get-buffer buffer)))
+    (with-current-buffer (get-buffer this-buffer)
+      (barf-if-buffer-read-only)
+      (insert summary)
+      (fill-paragraph))
+    (display-buffer (get-buffer this-buffer))))
 
 ;;;###autoload
 (defun wiki-summary (s)
@@ -87,10 +106,41 @@
                (json-array-type 'vector))
            (let* ((result (json-read))
                   (summary (wiki-summary/extract-summary result)))
-             (if summary
-                 (wiki-summary/format-summary-in-buffer summary)
-               (message "No article found"))))))))
+             (if (not summary)
+                 (message "No article found")
+               (wiki-summary/format-summary-in-buffer summary))))))))
+
+;;;###autoload
+(defun wiki-summary-insert (s)
+  "Return the wikipedia page's summary for a term"
+  (interactive
+   (list
+    (read-string (concat
+                  "Wikipedia Article"
+                  (if (thing-at-point 'word)
+                      (concat " (" (thing-at-point 'word) ")")
+                    "")
+                  ": ")
+                 nil
+                 nil
+                 (thing-at-point 'word))))
+  (save-excursion
+    (url-retrieve
+     (wiki-summary/make-api-query s)
+     (lambda (events buf)
+       (message "") ; Clear the annoying minibuffer display
+       (goto-char url-http-end-of-headers)
+       (let ((json-object-type 'plist)
+             (json-key-type 'symbol)
+             (json-array-type 'vector))
+         (let* ((result (json-read))
+                (summary (wiki-summary/extract-summary result)))
+           (if (not summary)
+               (message "No article found")
+             (wiki-summary/format-summary-into-buffer summary buf)))))
+     (list (buffer-name (current-buffer))))))
 
 (provide 'wiki-summary)
 
 ;;; wiki-summary.el ends here
+
