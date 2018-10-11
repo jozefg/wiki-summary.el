@@ -164,6 +164,12 @@
              (wiki-summary/format-summary-into-buffer summary buf)))))
      (list (buffer-name (current-buffer))))))
 
+;;;###autoload
+(defun wiki-summary/message-with-callback (mess timeout &optional callback)
+  "Provide a quick message to the user for a specified interval,
+   and then execute callback/recursion"
+  (lambda () (message mess) (sit-for timeout) callback))
+
 
 ;;;###autoload
 (defun wiki-summary (s &optional lev)
@@ -173,7 +179,7 @@
   (setq level (if lev lev 0))
   (setq direct (eq level 0))
   (if (>= level 5)
-      (message "max recursion, quitting.")
+      (wiki-summary/message-with-callback "max recursion, quitting." 2)
     (interactive
      (list
       (read-string
@@ -201,25 +207,24 @@
                  (let ((summary (wiki-summary/extract-summary result)))
                    (if summary
                        (if (string-match-p "may refer to:" summary)
-                           (progn
-                             (message "ambiguous title, recurse with search")
-                             (wiki-summary title (+ level 1)))
+                           (wiki-summary/message-with-callback
+                            "ambiguous title, recurse with search" 1
+                            (wiki-summary title (+ level 1)))
                          (wiki-summary/format-summary-in-buffer summary)) ;; Terminate with summary
-                     (progn
-                       (message "no article found, recurse with search")
-                       (wiki-summary title (+ level 1)))
-                     ))
+                     (wiki-summary/message-with-callback
+                      "no article found, recurse with search" 1
+                      (wiki-summary title (+ level 1)))))
                (let* ((chosen (wiki-summary/offer-choices result)))
                  (if chosen
-                     (progn
-                       (message (concat "chosen article [" chosen "], recurse with title"))
-                       (wiki-summary chosen))
-                   (message "no article found in search, quitting."))
-                 )))))))))
+                     (wiki-summary/message-with-callback
+                      (concat "chosen article [" chosen "], recurse with title") 2
+                      (wiki-summary chosen))
+                   (message "no article found in search, quitting.")))))))))))
 
 (provide 'wiki-summary)
 
 ;;; wiki-summary.el ends here
 ;; --- tests ----
+;; (wiki-summary "RNA")           ;; Direct title
 ;; (wiki-summary "RNA Binding")   ;; No direct title
 ;; (wiki-summary "Tony")          ;; Ambiguous title
