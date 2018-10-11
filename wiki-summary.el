@@ -95,7 +95,7 @@
   "Given a search title, generate the url for the API call
    to return a list of wiki page titles"
   (let ((pre (format wiki--pre-url-query-format-string wiki-summary-language-string))
-        (post 'wiki--post-url-format-string)
+        (post wiki--post-url-format-string)
         (term (url-hexify-string (replace-regexp-in-string " " "_" s))))
     (concat pre term post)))
 
@@ -113,20 +113,25 @@
     (replace-regexp-in-string "</span>" ""
       (replace-regexp-in-string "<span[^>]*>" "" snippet))))
 
+
+(cl-defstruct tuple title snippet)
+
 ;;;###autoload
 (defun wiki-summary/extract-titleandsnippet (json)
   "Extracts title and snippet entries from search results"
   (make-tuple
    :title (plist-get json 'title)
-   :snippet (clean-snippet (plist-get json 'snippet))))
+   :snippet (wiki-summary/clean-snippet (plist-get json 'snippet))))
 
 ;;;###autoload
 (defun wiki-summary/offer-choices (resp)
   "Offers a choice of potential titles to the user"
   (let* ((query (plist-get resp 'query))
          (searches (plist-get query 'search))
-         (choices (mapcar (lambda (x)
-             (wiki-summary/format-choice-text (extract-titleandsnippet x))) searches)))
+         (choices (mapcar
+                   (lambda (x)
+                     (wiki-summary/format-choice-text
+                      (wiki-summary/extract-titleandsnippet x))) searches)))
     (ido-completing-read "Matching Titles: " choices)))
 
 ;;;###autoload
@@ -161,26 +166,30 @@
 
 
 ;;;###autoload
-(defun wiki-summary (s &optional level)
+(defun wiki-summary (s &optional lev)
   "Return the wikipedia page's summary either by a directly
    provided title, or otherwise by searching for the title"
   (setq title s)
-  (setq direct (if (> level 0) not d))
-  (interactive
-   (list
-    (read-string
-     (concat
-      "Wikipedia Article"
-      (if (thing-at-point 'word)
-          (concat " (" (thing-at-point 'word) ")")
-        "")
-      ": ")
-     nil
-     nil
-     (thing-at-point 'word))))
-  (save-excursion
-    (url-retrieve (if direct (wiki-summary/make-api-query title)
-                    (wiki-summary/make-api-search-query title))
+  (setq level (if lev lev 0))
+  (setq direct (eq level 0))
+  (if (>= level 5)
+      (message "max recursion, quitting.")
+    (interactive
+     (list
+      (read-string
+       (concat
+        "Wikipedia Article"
+        (if (thing-at-point 'word)
+            (concat " (" (thing-at-point 'word) ")")
+          "")
+        ": ")
+       nil
+       nil
+       (thing-at-point 'word))))
+    (save-excursion
+      (url-retrieve
+       (if direct (wiki-summary/make-api-query title)
+         (wiki-summary/make-api-search-query title))
        (lambda (events)
          (message "") ; Clear the annoying minibuffer display
          (goto-char url-http-end-of-headers)
@@ -193,24 +202,24 @@
                    (if summary
                        (if (string-match-p "may refer to:" summary)
                            (progn
-                             (message "Ambiguous Title, recurse with search")
+                             (message "ambiguous title, recurse with search")
                              (wiki-summary title (+ level 1)))
                          (wiki-summary/format-summary-in-buffer summary)) ;; Terminate with summary
                      (progn
-                       (message "No title, recurse with search")
+                       (message "no article found, recurse with search")
                        (wiki-summary title (+ level 1)))
                      ))
                (let* ((chosen (wiki-summary/offer-choices result)))
                  (if chosen
                      (progn
-                       (message (concat "Chosen [" chosen "], recurse with title"))
-                       (wiki-summary chosen 0))
-                   (message "No article found"))
-                   ))))))))
+                       (message (concat "chosen article [" chosen "], recurse with title"))
+                       (wiki-summary chosen))
+                   (message "no article found in search, quitting."))
+                 )))))))))
 
 (provide 'wiki-summary)
 
 ;;; wiki-summary.el ends here
 ;; --- tests ----
-;; (wiki-summary "RNA Binding")  ;; No direct title
-;; (wiki-summary "Tony")  ;; ambiguous
+;; (wiki-summary "RNA Binding")   ;; No direct title
+;; (wiki-summary "Tony")          ;; Ambiguous title
