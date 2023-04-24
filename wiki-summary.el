@@ -60,8 +60,12 @@
          (info (cadr pages)))
     (plist-get info 'extract)))
 
+(defun wiki-summary-browse-current ()
+  (interactive)
+  (browse-url (concat "https://en.wikipedia.org/wiki/" wiki-summary-title)))
+
 ;;;###autoload
-(defun wiki-summary/format-summary-in-buffer (summary)
+(defun wiki-summary/format-summary-in-buffer (s summary)
   "Given a summary, stick it in the *wiki-summary* buffer and display the buffer"
   (let ((buf (generate-new-buffer "*wiki-summary*")))
     (with-current-buffer buf
@@ -69,7 +73,9 @@
       (fill-paragraph)
       (goto-char (point-min))
       (text-mode)
-      (view-mode))
+      (view-mode)
+      (setq-local wiki-summary-title s)
+      (local-set-key (kbd "b") #'wiki-summary-browse-current))
     (pop-to-buffer buf)))
 
 ;;;###autoload
@@ -98,17 +104,18 @@
                  (thing-at-point 'word))))
   (save-excursion
     (url-retrieve (wiki-summary/make-api-query s)
-       (lambda (events)
-         (message "") ; Clear the annoying minibuffer display
-         (goto-char url-http-end-of-headers)
-         (let ((json-object-type 'plist)
-               (json-key-type 'symbol)
-               (json-array-type 'vector))
-           (let* ((result (json-read))
-                  (summary (wiki-summary/extract-summary result)))
-             (if (not summary)
-                 (message "No article found")
-               (wiki-summary/format-summary-in-buffer summary))))))))
+                  (lambda (events s)
+                    (message "") ; Clear the annoying minibuffer display
+                    (goto-char url-http-end-of-headers)
+                    (let ((json-object-type 'plist)
+                          (json-key-type 'symbol)
+                          (json-array-type 'vector))
+                      (let* ((result (json-read))
+                             (summary (wiki-summary/extract-summary result)))
+                        (if (not summary)
+                            (message "No article found")
+                          (wiki-summary/format-summary-in-buffer s summary)))))
+                  (list s))))
 
 ;;;###autoload
 (defun wiki-summary-insert (s)
