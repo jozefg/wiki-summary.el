@@ -1,11 +1,11 @@
-;;; wiki-summary.el --- View Wikipedia summaries in Emacs easily.
+;;; wiki-summary.el --- View Wikipedia summaries -*- lexical-binding:t -*-
 
 ;; Copright (C) 2015 Danny Gratzer <jozefg@cmu.edu>
 
 ;; Author: Danny Gratzer
 ;; URL: https://github.com/jozefg/wiki-summary.el
-;; Keywords: wikipedia, utility
-;; Package-Requires: ((emacs "24"))
+;; Keywords: wikipedia, convenience
+;; Package-Requires: ((emacs "24.3"))
 ;; Version: 0.1
 
 ;;; Commentary:
@@ -26,6 +26,8 @@
 ;; I'm not sure exactly what else people would want out of this package.
 ;; Feature request issues are welcome.
 
+;;; Code:
+
 (require 'url)
 (require 'json)
 (require 'thingatpt)
@@ -35,38 +37,46 @@
   (defvar url-http-end-of-headers))
 
 (defcustom wiki-summary-language-string "en"
-  "Language string for the API URL call, i.e.: 'en', 'fr', etc.")
+  "Language string for the API URL call, i.e.: 'en', 'fr', etc."
+  :type 'string
+  :group 'wiki-summary)
 
-(defvar wiki--pre-url-format-string
-  "https://%s.wikipedia.org/w/api.php?continue=&action=query&titles=")
+(defvar wiki-summary-title nil)
 
-(defvar wiki--post-url-format-string
-  "&prop=extracts&exintro=&explaintext=&format=json&redirects")
+(defvar wiki-summary-pre-url-format-string
+  "https://%s.wikipedia.org/w/api.php?continue=&action=query&titles="
+  "URL prefix.")
+
+(defvar wiki-summary-post-url-format-string
+  "&prop=extracts&exintro=&explaintext=&format=json&redirects"
+  "URL suffix.")
 
 ;;;###autoload
-(defun wiki-summary/make-api-query (s)
-  "Given a wiki page title, generate the url for the API call
-   to get the page info"
-  (let ((pre (format wiki--pre-url-format-string wiki-summary-language-string))
-        (post wiki--post-url-format-string)
+(defun wiki-summary-make-api-query (s)
+  "Given a wiki page title, generate the url for request.
+S is the term to search."
+  (let ((pre (format wiki-summary-pre-url-format-string wiki-summary-language-string))
+        (post wiki-summary-post-url-format-string)
         (term (url-hexify-string (replace-regexp-in-string " " "_" s))))
     (concat pre term post)))
 
 ;;;###autoload
-(defun wiki-summary/extract-summary (resp)
-  "Given the JSON reponse from the webpage, grab the summary as a string"
+(defun wiki-summary-extract-summary (resp)
+  "Given RESP, the JSON reponse from the webpage, grab the summary as a string."
   (let* ((query (plist-get resp 'query))
          (pages (plist-get query 'pages))
          (info (cadr pages)))
     (plist-get info 'extract)))
 
 (defun wiki-summary-browse-current ()
+  "Browse current page on wikipedia.org."
   (interactive)
   (browse-url (concat "https://en.wikipedia.org/wiki/" wiki-summary-title)))
 
 ;;;###autoload
-(defun wiki-summary/format-summary-in-buffer (s summary)
-  "Given a summary, stick it in the *wiki-summary* buffer and display the buffer"
+(defun wiki-summary-format-summary-in-buffer (s summary)
+  "Given a summary, stick it in the *wiki-summary* buffer and display the buffer.
+S is the term searched for, SUMMARY is the summary TEXT."
   (let ((buf (get-buffer-create "*wiki-summary*")))
     (with-current-buffer buf
       (princ summary buf)
@@ -78,8 +88,8 @@
     (pop-to-buffer buf)))
 
 ;;;###autoload
-(defun wiki-summary/format-summary-into-buffer (summary buffer)
-  "Given a summary, stick it in the *wiki-summary* buffer and display the buffer"
+(defun wiki-summary-format-summary-into-buffer (summary buffer)
+  "Given SUMMARY, stick it in the *wiki-summary* buffer and display BUFFER."
   (let ((this-buffer (get-buffer buffer)))
     (with-current-buffer (get-buffer this-buffer)
       (barf-if-buffer-read-only)
@@ -89,7 +99,7 @@
 
 ;;;###autoload
 (defun wiki-summary (s)
-  "Return the wikipedia page's summary for a term"
+  "Return the wikipedia page's summary for a term, S."
   (interactive
    (list
     (read-string (concat
@@ -102,23 +112,23 @@
                  nil
                  (thing-at-point 'word))))
   (save-excursion
-    (url-retrieve (wiki-summary/make-api-query s)
-                  (lambda (events s)
+    (url-retrieve (wiki-summary-make-api-query s)
+                  (lambda (_events s)
                     (message "") ; Clear the annoying minibuffer display
                     (goto-char url-http-end-of-headers)
                     (let ((json-object-type 'plist)
                           (json-key-type 'symbol)
                           (json-array-type 'vector))
                       (let* ((result (json-read))
-                             (summary (wiki-summary/extract-summary result)))
+                             (summary (wiki-summary-extract-summary result)))
                         (if (not summary)
                             (message "No article found")
-                          (wiki-summary/format-summary-in-buffer s summary)))))
+                          (wiki-summary-format-summary-in-buffer s summary)))))
                   (list s))))
 
 ;;;###autoload
 (defun wiki-summary-insert (s)
-  "Return the wikipedia page's summary for a term"
+  "Return the wikipedia page's summary for a term, S."
   (interactive
    (list
     (read-string (concat
@@ -132,18 +142,18 @@
                  (thing-at-point 'word))))
   (save-excursion
     (url-retrieve
-     (wiki-summary/make-api-query s)
-     (lambda (events buf)
+     (wiki-summary-make-api-query s)
+     (lambda (_events buf)
        (message "") ; Clear the annoying minibuffer display
        (goto-char url-http-end-of-headers)
        (let ((json-object-type 'plist)
              (json-key-type 'symbol)
              (json-array-type 'vector))
          (let* ((result (json-read))
-                (summary (wiki-summary/extract-summary result)))
+                (summary (wiki-summary-extract-summary result)))
            (if (not summary)
                (message "No article found")
-             (wiki-summary/format-summary-into-buffer summary buf)))))
+             (wiki-summary-format-summary-into-buffer summary buf)))))
      (list (buffer-name (current-buffer))))))
 
 (defvar wiki-summary-mode-map
